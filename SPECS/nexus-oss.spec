@@ -1,22 +1,23 @@
 Summary: Nexus manages software “artifacts” required for development, deployment, and provisioning.
-Name: nexus-oss
-Version: 1.9.2.3
-Release: 1
+Name: nexus
+Version: 2.7.0
+Release: 2
 License: AGPL
 Group: unknown
 URL: http://nexus.sonatype.org/
-Source0: %{name}-webapp-%{version}-bundle.tar.gz
+Source0: %{name}-%{version}-bundle.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
-Requires: jdk
+Requires: java-openjdk >= 1:1.7.0
 AutoReqProv: no
 
 %define __os_install_post %{nil}
+%define debug_package %{nil}
 
 %description
 A package repository
 
 %prep
-%setup -q -n %{name}-webapp-%{version}
+%setup -q -n %{name}-%{version}-06
 
 %build
 
@@ -26,37 +27,65 @@ mkdir -p $RPM_BUILD_ROOT/usr/share/%{name}
 mv * $RPM_BUILD_ROOT/usr/share/%{name}
 
 arch=$(echo "%{_arch}" | sed -e 's/_/-/')
-mkdir -p $RPM_BUILD_ROOT/etc/rc.d/init.d/
-cd $RPM_BUILD_ROOT/etc/rc.d/init.d/
-ln -sf /usr/share/%{name}/bin/jsw/linux-$arch/nexus $RPM_BUILD_ROOT/etc/rc.d/init.d/
-
-mkdir -p $RPM_BUILD_ROOT/etc/
-ln -sf /usr/share/%{name}/conf $RPM_BUILD_ROOT/etc/nexus
+mkdir -p $RPM_BUILD_ROOT/etc/init.d/
+cd $RPM_BUILD_ROOT/etc/init.d/
+ln -sf /usr/share/%{name}/bin/nexus $RPM_BUILD_ROOT/etc/init.d/nexus
 
 # patch work dir
-sed -i -e 's#nexus-work=.*#nexus-work=/var/lib/nexus/#g' $RPM_BUILD_ROOT/usr/share/%{name}/conf/plexus.properties
+sed -i -e 's#nexus-work=.*#nexus-work=/var/lib/nexus/#g' $RPM_BUILD_ROOT/usr/share/%{name}/conf/nexus.properties
 mkdir -p $RPM_BUILD_ROOT/var/lib/nexus
 
 # patch tcp port
-sed -i -e 's#application-port=.*#application-port=80#g' $RPM_BUILD_ROOT/usr/share/%{name}/conf/plexus.properties
+sed -i -e 's#application-port=.*#application-port=80#g' $RPM_BUILD_ROOT/usr/share/%{name}/conf/nexus.properties
+
+#patch properties file
+mkdir -p $RPM_BUILD_ROOT/etc/nexus
+mv $RPM_BUILD_ROOT/usr/share/%{name}/conf/* $RPM_BUILD_ROOT/etc/nexus
+ln -sf /etc/nexus /usr/share/%{name}/conf/
 
 # patch pid dir
-sed -i -e 's#PIDDIR=.*#PIDDIR=/var/run/#' $RPM_BUILD_ROOT/usr/share/%{name}/bin/jsw/linux-$arch/nexus
+sed -i -e 's#PIDDIR=.*#PIDDIR=/var/run/nexus#' $RPM_BUILD_ROOT/usr/share/%{name}/bin/nexus
+mkdir -p $RPM_BUILD_ROOT/var/run/nexus
+
+#patch user to run
+sed -i -e 's/#RUN_AS_USER=/RUN_AS_USER=nexus/' $RPM_BUILD_ROOT/usr/share/%{name}/bin/nexus
 
 # patch logfile
 mkdir -p $RPM_BUILD_ROOT/var/log/nexus
 sed -i -e 's#wrapper.logfile=.*#wrapper.logfile=/var/log/nexus/nexus.log#' $RPM_BUILD_ROOT/usr/share/%{name}/bin/jsw/conf/wrapper.conf
 
+%pre
+id -u nexus &>/dev/null || /usr/sbin/useradd -r -c "Nexus server user" -d /var/lib/nexus nexus
+/usr/sbin/groupadd -r nexus &>/dev/null || :
+# SUSE version had -o here, but in Fedora -o isn't allowed without -u
+/usr/sbin/useradd -g nexus -s /bin/false -r -c "Nexus Repository Management server" \
+-d "/var/lib/nexus" nexus &>/dev/null || :
+
+%post
+/sbin/chkconfig --add nexus
+
+%preun
+if [ "$1" = 0 ] ; then
+    # if this is uninstallation as opposed to upgrade, delete the service
+    /sbin/service nexus stop > /dev/null 2>&1
+    /sbin/chkconfig --del nexus
+fi
+
+$postun
+if [ "$1" -ge 1 ]; then
+    /sbin/service nexus condrestart > /dev/null 2>&1
+fi
+
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %files
-%defattr(-,root,root,-)
+%defattr(-,nexus,nexus,-)
+%attr(-,root,root) /etc/init.d/nexus
 %doc
 /usr/share/%{name}
-/etc/rc.d/init.d/nexus
-/etc/nexus
 /var/lib/nexus
+/var/run/nexus
 /var/log/nexus
 
 %changelog
