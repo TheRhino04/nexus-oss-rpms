@@ -11,12 +11,13 @@ Requires: java-openjdk >= 1:1.7.0
 AutoReqProv: no
 
 %define __os_install_post %{nil}
+%define debug_package %{nil}
 
 %description
 A package repository
 
 %prep
-%setup -q -n %{name}-%{version}-05
+%setup -q -n %{name}-%{version}-06
 
 %build
 
@@ -38,7 +39,8 @@ mkdir -p $RPM_BUILD_ROOT/var/lib/nexus
 sed -i -e 's#application-port=.*#application-port=80#g' $RPM_BUILD_ROOT/usr/share/%{name}/conf/nexus.properties
 
 # patch pid dir
-sed -i -e 's#PIDDIR=.*#PIDDIR=/var/run/#' $RPM_BUILD_ROOT/usr/share/%{name}/bin/nexus
+sed -i -e 's#PIDDIR=.*#PIDDIR=/var/run/nexus#' $RPM_BUILD_ROOT/usr/share/%{name}/bin/nexus
+mkdir -p $RPM_BUILD_ROOT/var/run/nexus
 
 #patch user to run
 sed -i -e 's/#RUN_AS_USER=/RUN_AS_USER=nexus/' $RPM_BUILD_ROOT/usr/share/%{name}/bin/nexus
@@ -59,6 +61,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc
 /usr/share/%{name}
 /var/lib/nexus
+/var/run/nexus
 /var/log/nexus
 
 %changelog
