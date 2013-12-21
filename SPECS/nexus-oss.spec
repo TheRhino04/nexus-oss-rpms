@@ -17,7 +17,7 @@ AutoReqProv: no
 A package repository
 
 %prep
-%setup -q -n %{name}-%{version}-06
+%setup -q -n %{name}-%{version}-05
 
 %build
 
@@ -41,7 +41,8 @@ sed -i -e 's#application-port=.*#application-port=80#g' $RPM_BUILD_ROOT/usr/shar
 #patch properties file
 mkdir -p $RPM_BUILD_ROOT/etc/nexus
 mv $RPM_BUILD_ROOT/usr/share/%{name}/conf/* $RPM_BUILD_ROOT/etc/nexus
-ln -sf /etc/nexus /usr/share/%{name}/conf/
+rm -rf $RPM_BUILD_ROOT/usr/share/%{name}/conf
+ln -sd /etc/nexus $RPM_BUILD_ROOT/usr/share/%{name}/conf
 
 # patch pid dir
 sed -i -e 's#PIDDIR=.*#PIDDIR=/var/run/nexus#' $RPM_BUILD_ROOT/usr/share/%{name}/bin/nexus
@@ -50,12 +51,26 @@ mkdir -p $RPM_BUILD_ROOT/var/run/nexus
 #patch user to run
 sed -i -e 's/#RUN_AS_USER=/RUN_AS_USER=nexus/' $RPM_BUILD_ROOT/usr/share/%{name}/bin/nexus
 
-# patch logfile
+# patch logs dir and logfile
 mkdir -p $RPM_BUILD_ROOT/var/log/nexus
+rm -rf $RPM_BUILD_ROOT/usr/share/%{name}/logs
+ln -sd /var/log/nexus $RPM_BUILD_ROOT/usr/share/%{name}/logs
 sed -i -e 's#wrapper.logfile=.*#wrapper.logfile=/var/log/nexus/nexus.log#' $RPM_BUILD_ROOT/usr/share/%{name}/bin/jsw/conf/wrapper.conf
 
+#add logrotate configuration
+mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
+cat > $RPM_BUILD_ROOT/etc/logrotate.d/nexus << "EOF"
+/var/log/nexus/*.log {
+    copytruncate
+    weekly
+    rotate 52
+    compress
+    missingok
+    create 0644 nexus nexus
+}
+EOF
+
 %pre
-id -u nexus &>/dev/null || /usr/sbin/useradd -r -c "Nexus server user" -d /var/lib/nexus nexus
 /usr/sbin/groupadd -r nexus &>/dev/null || :
 # SUSE version had -o here, but in Fedora -o isn't allowed without -u
 /usr/sbin/useradd -g nexus -s /bin/false -r -c "Nexus Repository Management server" \
@@ -71,7 +86,7 @@ if [ "$1" = 0 ] ; then
     /sbin/chkconfig --del nexus
 fi
 
-$postun
+%postun
 if [ "$1" -ge 1 ]; then
     /sbin/service nexus condrestart > /dev/null 2>&1
 fi
@@ -87,6 +102,8 @@ rm -rf $RPM_BUILD_ROOT
 /var/lib/nexus
 /var/run/nexus
 /var/log/nexus
+%config(noreplace) /etc/nexus
+/etc/logrotate.d/nexus
 
 %changelog
 * Thu Dec 22 2011 Jens Braeuer <braeuer.jens@googlemail.com> - 1.9.2.3-1
