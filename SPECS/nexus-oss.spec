@@ -9,6 +9,7 @@ Source0: %{name}-%{version}-bundle.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 Requires: java-openjdk >= 1:1.7.0
 AutoReqProv: no
+Patch0:ret_code.patch
 
 %define __os_install_post %{nil}
 %define debug_package %{nil}
@@ -18,6 +19,8 @@ A package repository
 
 %prep
 %setup -q -n %{name}-%{version}-05
+
+%patch0 -p1
 
 %build
 

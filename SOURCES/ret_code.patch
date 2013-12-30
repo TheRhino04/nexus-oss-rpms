@@ -1,0 +1,27 @@
+diff -rupN nexus-2.7.0-05-orig/bin/nexus nexus-2.7.0-05/bin/nexus
+--- nexus-2.7.0-05-orig/bin/nexus	2013-12-08 13:30:56.000000000 -0800
++++ nexus-2.7.0-05/bin/nexus	2013-12-30 14:14:31.000000000 -0800
+@@ -293,6 +293,7 @@ checkUser() {
+             # Still want to change users, recurse.  This means that the user will only be
+             #  prompted for a password once. Variables shifted by 1
+             su - $RUN_AS_USER -c "\"$REALPATH\" $2"
++            ret_code=$?
+     
+             # Now that we are the original user again, we may need to clean up the lock file.
+             if [ "X$LOCKPROP" != "X" ]
+@@ -308,7 +309,7 @@ checkUser() {
+                 fi
+             fi
+     
+-            exit 0
++            exit $ret_code
+         fi
+     fi
+ 
+@@ -549,4 +550,4 @@ case "$1" in
+         ;;
+ esac
+ 
+-exit 0
+\ No newline at end of file
++exit 0
